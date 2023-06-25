@@ -1,0 +1,5 @@
+<launch>
+    <param name="camera_description" 
+        command="$(find xacro)/xacro --inorder $(find open_manipulator_description)/urdf/camera.xacro"/>
+</launch>
+
