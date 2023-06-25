@@ -1,0 +1,10 @@
+<launch>
+    <!-- Gazebo simulation -->
+    <!-- <include file="$(find open_manipulator_gazebo)/launch/open_manipulator_custom_gazebo.launch"/> -->
+
+    <!-- Computer vision -->
+
+    <!-- State machine -->
+    <node pkg="tossing-bot" name="state_machine" type="state_machine.py" output="screen"/>
+</launch>
+

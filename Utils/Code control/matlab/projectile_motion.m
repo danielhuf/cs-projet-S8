@@ -1,0 +1,205 @@
+clear; clc; close all;
+%% init 
+show_figure = false;
+Ts = 0.01;
+%rosinit("192.168.153.128"); %ros vm
+rosshutdown();
+rosinit("192.168.153.129");
+
+%subscriber
+cup_position_sub = rossubscriber("/cup_distance", "std_msgs/Float64" );
+pause(1)
+
+%publisher
+trajectory_pub = rospublisher("/trajectory", "trajectory_msgs/JointTrajectoryPoint");
+pause(1)
+trajectory = rosmessage("trajectory_msgs/JointTrajectoryPoint");
+
+% trajectory.TimeFromStart = Ts;  
+%%
+g = 9.81;
+
+global a1
+a1 = 0.130;
+global a2
+a2 = 0.124;
+global a3
+a3 = 0.126;
+
+global final_x 
+global max_arm_lenght ;
+max_arm_lenght = (a1+a2+a3);
+global min_arm_length;
+min_arm_length = 0.7*max_arm_lenght;
+
+w_max = 4.8171;
+Vmax = w_max*0.124;
+velocity_up = 9*Vmax*Vmax;
+
+lb_bounds = [-max_arm_lenght;0.1; 0;];
+ub_bounds = [max_arm_lenght; max_arm_lenght; velocity_up;];
+
+while(true)
+%     cup_dist = receive(cup_position_sub, inf);
+%     final_x = cup_dist.Data;
+    final_x = 0.5;
+%     disp(final_x)
+    x = fmincon(@project_energy, [0.05;0.05;0;], [],[],[],[],lb_bounds,ub_bounds, @constraint_funct);
+    
+    xt = x(1);
+    yt = x(2);
+    vx_t = vx(x,final_x);
+    vy_t = x(3);
+    
+    
+    disp('check the ortogonality')
+    disp([xt, yt]* [vx_t; vy_t])
+    disp('check the leght of the throw')
+    disp(sqrt(xt^2 + yt^2)/max_arm_lenght )
+    
+    %% change for the angular frame
+    rho = sqrt(xt^2 + yt^2);
+    phi_t = atan2(yt, xt);
+    theta_t = inv_kinematic([xt, yt], phi_t);
+    
+    I1 = 0.0347563; %kg.m^2
+    I2 = 0.0458929; %kg.m^2
+    I3 = 0.0347563; %kg.m^2
+    
+    Torque = 4.1; %N.m
+    
+    max_alpha = Torque / (I1 + I2 + I3);
+    wt = -sqrt(vx_t^2 + vy_t^2)/rho;
+    tolerance = 0.1;
+    omega_t = [wt/3 ; wt/3; wt/3];
+    
+    while(1)
+        alpha = -tolerance*max_alpha*ones(3,1) ;
+        thetas = theta_t;
+        omegas = omega_t;
+        i = 0;
+        
+        while ( omegas(:,1) < zeros(3,1) )
+            i = i+1;
+            thetas = [ thetas(:,1) - omegas(:,1)*Ts - alpha*Ts^2/2, thetas];
+            if i < 5
+                omegas = [ omega_t, omegas ];
+            else
+                omegas = [ omegas(:,1) - alpha*Ts, omegas ];
+            end
+        end
+        
+        [xo, yo] = kinematic(thetas(:,1));
+        
+        initial_radius = sqrt(xo^2 + yo^2);
+        if (yo > 0 && initial_radius < max_arm_lenght ) %succes condition
+            break;
+        end
+        
+        tolerance = tolerance + 0.1;
+        assert(tolerance > 1, 'Unfeasible problem');
+    end
+    [~, step_of_throw] = size(thetas);
+    omegas(:,1) = zeros(3,1);
+    tolerance = 0.1;
+    
+    while(1)
+        alpha = tolerance*max_alpha*ones(3,1) ;
+        i = 0;
+        while ( all(omegas(:,end) < zeros(3,1)) )
+            i = i+1;
+            thetas = [thetas, thetas(:,end) + omegas(:,end)*Ts + alpha*Ts^2/2 ];
+            if i < 5
+                omegas = [ omegas, omega_t ];
+            else
+                omegas = [omegas, omegas(:,end) + alpha*Ts ];
+            end
+        end
+        
+        [xf, yf] = kinematic(thetas(:,end));
+        
+        final_radius = sqrt(xf^2 + yf^2);
+        if (yf > 0 && final_radius < max_arm_lenght ) %succes condition
+            break;
+        end
+        
+        tolerance = tolerance + 0.1;
+    
+        assert(tolerance > 1, 'Unfeasible problem');
+    end
+    omegas(:,end) = zeros(3,1);
+    
+    trajectory.Positions = thetas;
+    trajectory.Velocities = omegas;
+    send(trajectory_pub, trajectory);
+    
+    [trajectory_x, trajectory_y] = kinematic(thetas);
+    
+    %% visualization
+    if show_figure
+        filename = 'traj.gif';
+        [~,steps] = size(thetas);
+        
+        f = figure;
+        for i =1:steps
+            [base_t, p1, p2, p3] = points_d_robot(thetas(:,i));
+            clf(f);
+            hold on
+            
+            % robot
+            plot(trajectory_x, trajectory_y)
+        
+            plot([base_t(1), p1(1)], [base_t(2), p1(2)], 'Color', "black", 'LineWidth', 2)
+            plot([p1(1), p2(1)], [p1(2), p2(2)] ,'Color', "black", 'LineWidth', 2)
+            plot([p2(1), p3(1)], [p2(2), p3(2)] ,'Color', "black", 'LineWidth', 2)
+        
+            legend('trajectory')
+            xlim([-1, 1]);
+            ylim([ 0, 0.5]);
+            grid on
+            hold off
+        
+            frame = getframe(f);
+            im = frame2im(frame);
+            [imind,cm] = rgb2ind(im,256);
+            if i == 1
+                imwrite(imind,cm,filename,'gif', 'Loopcount',inf,'DelayTime', Ts);
+            else
+                imwrite(imind,cm,filename,'gif','WriteMode','append', 'DelayTime', Ts);
+            end
+            pause(Ts)
+        end
+     
+        figure
+        hold on
+        subplot(3,1,1)
+        plot(thetas(1,:))
+        legend('\theta 1')
+        grid on
+        subplot(3,1,2)
+        plot(thetas(2,:))
+        legend('\theta 2')
+        grid on
+        subplot(3,1,3)
+        plot(thetas(3,:))
+        legend('\theta 3')
+        grid on
+        hold off
+        
+        figure
+        hold on
+        subplot(3,1,1)
+        plot(omegas(1,:))
+        legend('\omega 1')
+        grid on
+        subplot(3,1,2)
+        plot(omegas(2,:))
+        legend('\omega 2')
+        grid on
+        subplot(3,1,3)
+        plot(omegas(3,:))
+        legend('\omega 3')
+        grid on
+        hold off 
+    end
+end

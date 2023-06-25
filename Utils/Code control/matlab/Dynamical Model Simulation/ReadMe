@@ -1,0 +1,30 @@
+# Robotic Arm Control Simulation
+
+This repository contains simulation files for controlling the robotic arm in Matlab/Simulink
+
+The simulations include both linear and non-linear models of the system.
+
+## Simulation Setup
+
+To simulate the system with control and observe trajectory tracking, follow the steps below:
+
+1. Run the file `Linearization_SS_Control.m`. This file will execute both `Dynamical_Model_And_Validation.m`
+   and `Inertia_Computation.m` to set up the dynamical model and compute the inertia matrix.
+
+2. Open the Simulink file `All_Simulations.slx`. This file contains the following simulation blocks:
+
+    - State Space Control: This block implements control on the linearized state space system using the LQR control strategy. 
+      It allows for tracking of joint angle references.
+
+    - Non-Linear Control: This block applies the control strategy to the non-linear real system without any simplification
+      or linearization. 
+
+    - Kinematic Testing: This block is used for testing the kinematic model of the robot arm. 
+
+    - Cartesian Control: This block applies control to the non-linear real system for achieving Cartesian position
+      control of the end-effector.
+
+
+For more details on the implementation and configuration of the simulation, please refer to the source code files and comments within the provided files.
+
+
