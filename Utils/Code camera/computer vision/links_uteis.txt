@@ -1,0 +1,12 @@
+https://stackoverflow.com/questions/64969715/detecting-squares-rectangles-using-opencv
+https://stackoverflow.com/questions/47483951/how-to-define-a-threshold-value-to-detect-only-green-colour-objects-in-an-image
+https://chev.me/arucogen/
+https://pyimagesearch.com/2020/12/14/generating-aruco-markers-with-opencv-and-python/
+https://pyimagesearch.com/2020/12/21/detecting-aruco-markers-with-opencv-and-python/
+https://www.youtube.com/watch?v=UlM2bpqo_o0
+https://www.youtube.com/watch?v=GEWoGDdjlSc
+https://www.youtube.com/watch?v=3h7wgR5fYik
+https://docs.opencv.org/4.x/d5/dae/tutorial_aruco_detection.html
+https://docs.opencv.org/4.x/d9/d6a/group__aruco.html#gaba7f1e107f93451e2bc43b8ea96eef8c
+https://github.com/niconielsen32/ComputerVision
+https://learnopencv.com/camera-calibration-using-opencv/
